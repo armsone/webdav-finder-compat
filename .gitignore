@@ -1,0 +1,33 @@
+# Environment secrets and local configurations
+.env
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+dist/
+*.egg-info/
+
+# macOS metadata
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Editor and IDE directories
+.vscode/
+.idea/
+*.swp
+*~
+
+# Internal workflow, context and diagnostic files
+context.txt
+requests.json
+*.log
+package-review-ready.json

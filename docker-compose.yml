@@ -1,0 +1,73 @@
+# Docker Compose template for WebDAV Compatibility Gateway on Synology DSM
+# Baseline Topology:
+#   - Backend WebDAV: Native Synology WebDAV Server on HTTP 5005 (host.docker.internal:5005)
+#   - Gateway Loopback: Bound to 127.0.0.1:18080 (Docker <28 same-L2 caveat applies; not absolute WAN/LAN isolation)
+#   - TLS Termination: DSM GUI Reverse Proxy on HTTPS 5006 (managed via DSM certificate)
+#   - Security: No certificate key copies, no credentials stored, no exposed new ports.
+#   - Packaging: Pinned to aiohttp 3.14.5 (Python 3.11-slim), non-root UID 10001, read-only rootfs.
+
+services:
+  webdav-compat-gateway:
+    image: ${GATEWAY_IMAGE:-webdav-compat-gateway:3.14.5}
+    container_name: webdav-compat-gateway
+    restart: unless-stopped
+
+    # Build Configuration:
+    # Context set to repository root where Dockerfile and gateway.py reside.
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    # Security Hardening
+    user: "10001:10001"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+      - /var/run:rw,noexec,nosuid,size=16m
+
+    # Network Isolation:
+    # Strictly bind to 127.0.0.1:18080 (Docker <28 loopback binding has same-L2 caveat; not absolute WAN/LAN isolation). Never bind to 0.0.0.0.
+    ports:
+      - "127.0.0.1:${GATEWAY_LOOPBACK_PORT:-18080}:${WEBDAV_LISTEN_PORT:-8080}"
+
+    # Allow container to reach host-local services (DSM WebDAV HTTP on port 5005) via bridge network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    # Runtime Configuration:
+    environment:
+      # Upstream native Synology WebDAV service (local HTTP 5005 via host-gateway)
+      - WEBDAV_UPSTREAM_URL=${WEBDAV_UPSTREAM_URL:-http://host.docker.internal:5005}
+
+      # Gateway listen configuration inside container (Internal port 8080 is fixed for healthcheck; do not change WEBDAV_LISTEN_PORT in this example without updating port mapping and healthcheck probe)
+      - WEBDAV_LISTEN_HOST=${WEBDAV_LISTEN_HOST:-0.0.0.0}
+      - WEBDAV_LISTEN_PORT=${WEBDAV_LISTEN_PORT:-8080}
+
+      # Upstream TLS verification (default true; safe for future HTTPS, ignored by HTTP upstream)
+      - WEBDAV_TLS_VERIFY=${WEBDAV_TLS_VERIFY:-true}
+
+      # Maximum XML buffer size for PROPFIND response parsing (10MB)
+      - WEBDAV_MAX_XML_SIZE=${WEBDAV_MAX_XML_SIZE:-10485760}
+
+      # REQUIRED: Exact actual public HTTPS scheme + hostname + port (mismatch causes COPY/MOVE 400 Bad Request)
+      - WEBDAV_PUBLIC_ORIGIN=${WEBDAV_PUBLIC_ORIGIN:-https://nas.example.com:5006}
+
+    # Container healthcheck:
+    # Uses native python3 interpreter without relying on external shell tools (wget/curl)
+    # which are absent from the minimal python:3.11-slim image.
+    # Requests PROPFIND http://127.0.0.1:8080/home/ with Depth: 0; expects HTTP 401 Unauthorized
+    # ONLY (validating both authentication requirement and backend upstream health).
+    healthcheck:
+      test:
+        - "CMD"
+        - "python3"
+        - "-c"
+        - "import urllib.request, urllib.error, sys;\nreq = urllib.request.Request('http://127.0.0.1:8080/home/', method='PROPFIND', headers={'Depth': '0'});\ntry:\n    urllib.request.urlopen(req, timeout=3)\n    sys.exit(1)\nexcept urllib.error.HTTPError as e:\n    sys.exit(0 if e.code == 401 else 1)\nexcept Exception:\n    sys.exit(1)\n"
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s

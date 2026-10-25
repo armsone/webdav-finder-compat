@@ -1,0 +1,3 @@
+# Official PyPI checked 2026-10-25: aiohttp 3.14.5 (requires_python >= 3.10)
+aiohttp==3.14.5
+

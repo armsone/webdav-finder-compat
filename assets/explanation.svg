@@ -1,0 +1,144 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 620" width="100%" height="100%">
+  <defs>
+    <style>
+      .bg { fill: #1e1e24; }
+      .card { fill: #2b2d42; stroke: #4a4e69; stroke-width: 1.5; rx: 8px; }
+      .card-accent { fill: #22223b; stroke: #ef233c; stroke-width: 2; rx: 8px; }
+      .card-success { fill: #22223b; stroke: #06d6a0; stroke-width: 2; rx: 8px; }
+      .header-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 20px; font-weight: 700; fill: #f8f9fa; }
+      .badge-label { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; font-weight: 600; fill: #ffd166; }
+      .text-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 15px; font-weight: 700; fill: #edf2f4; }
+      .text-body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; fill: #8d99ae; }
+      .text-highlight { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; font-weight: 700; fill: #f8f9fa; }
+      .text-danger { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; font-weight: 700; fill: #ef233c; }
+      .text-success { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; font-weight: 700; fill: #06d6a0; }
+      .text-code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; fill: #e0e1dd; }
+      .arrow { stroke: #8d99ae; stroke-width: 2; marker-end: url(#arrowhead); fill: none; }
+      .arrow-accent { stroke: #06d6a0; stroke-width: 2; marker-end: url(#arrowhead-green); fill: none; }
+      .arrow-danger { stroke: #ef233c; stroke-width: 2; marker-end: url(#arrowhead-red); fill: none; }
+      .notice-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12px; fill: #ffb703; font-weight: 600; text-anchor: middle; }
+    </style>
+    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#8d99ae" />
+    </marker>
+    <marker id="arrowhead-green" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#06d6a0" />
+    </marker>
+    <marker id="arrowhead-red" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#ef233c" />
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="960" height="620" class="bg" rx="12" />
+
+  <!-- Title & Label Note -->
+  <text x="480" y="42" text-anchor="middle" class="header-title">macOS Finder WebDAV NFC/NFD 경로 길이 판정 원리 설명도</text>
+  <rect x="230" y="58" width="500" height="26" rx="6" fill="#3a2e1d" stroke="#b07d1c" stroke-width="1" />
+  <text x="480" y="75" class="notice-text">※ 원리 설명 다이어그램 (Explanation Diagram — Not a Real Screenshot)</text>
+
+  <!-- Column 1: macOS Client Request -->
+  <g transform="translate(40, 105)">
+    <rect width="260" height="420" class="card" />
+    <text x="20" y="32" class="text-title">1. macOS 클라이언트 요청</text>
+    <text x="20" y="54" class="text-body">Finder(WebDAVFS)의 PROPFIND 요청</text>
+    
+    <rect x="15" y="75" width="230" height="110" rx="6" fill="#1b1d28" stroke="#3d405b" />
+    <text x="25" y="98" class="badge-label">[부모 디렉토리 요청]</text>
+    <text x="25" y="120" class="text-code">/home/#설치어플/</text>
+    <text x="25" y="145" class="text-body">macOS 내부 NFD 정규화:</text>
+    <text x="25" y="168" class="text-highlight">UTF-16 길이: <tspan fill="#ffd166">18자 (NFD)</tspan></text>
+
+    <rect x="15" y="200" width="230" height="195" rx="6" fill="#1b1d28" stroke="#3d405b" />
+    <text x="25" y="224" class="badge-label">[webdavfs 판정 공식]</text>
+    <text x="25" y="246" class="text-code">CFStringGetLength(child)</text>
+    <text x="25" y="266" class="text-code">&gt; CFStringGetLength(parent)</text>
+    <text x="25" y="295" class="text-body">Apple 오픈소스 webdav_parse.c:</text>
+    <text x="25" y="318" class="text-body">자식 경로 길이가 부모보다 길어야</text>
+    <text x="25" y="338" class="text-body">유효한 자식 항목으로 인식하고</text>
+    <text x="25" y="358" class="text-body">Finder 목록에 노출함.</text>
+    <text x="25" y="380" class="text-code">기준 길이 = 18 (NFD)</text>
+  </g>
+
+  <!-- Middle Box Top: Problem without Gateway -->
+  <g transform="translate(340, 105)">
+    <rect width="270" height="195" class="card-accent" />
+    <text x="20" y="30" class="text-title">2-A. 보정 전 (직접 응답 수신)</text>
+    <text x="20" y="50" class="text-body">Synology 기본 응답 (NFC)</text>
+
+    <line x1="20" y1="62" x2="250" y2="62" stroke="#4a4e69" />
+
+    <text x="20" y="85" class="text-code">Android (NFC): 길이 20 &gt; 18</text>
+    <text x="205" y="85" class="text-success">표시 O</text>
+
+    <text x="20" y="110" class="text-code">Windows (NFC): 길이 20 &gt; 18</text>
+    <text x="205" y="110" class="text-success">표시 O</text>
+
+    <rect x="15" y="125" width="240" height="55" rx="5" fill="#3a1c24" stroke="#ef233c" />
+    <text x="25" y="145" class="text-danger">Mac (NFC): 길이 16 &lt;= 18</text>
+    <text x="25" y="165" class="text-danger">▶ 부모보다 짧아 목록에서 누락!</text>
+  </g>
+
+  <!-- Middle Box Bottom: Solution with Gateway -->
+  <g transform="translate(340, 330)">
+    <rect width="270" height="195" class="card-success" />
+    <text x="20" y="30" class="text-title">2-B. 게이트웨이 보정 후</text>
+    <text x="20" y="50" class="text-body">PROPFIND href 경로만 NFD 변환</text>
+
+    <line x1="20" y1="62" x2="250" y2="62" stroke="#4a4e69" />
+
+    <text x="20" y="85" class="text-code">Android (NFD): 길이 26 &gt; 18</text>
+    <text x="205" y="85" class="text-success">표시 O</text>
+
+    <text x="20" y="110" class="text-code">Windows (NFD): 길이 26 &gt; 18</text>
+    <text x="205" y="110" class="text-success">표시 O</text>
+
+    <rect x="15" y="125" width="240" height="55" rx="5" fill="#1b382b" stroke="#06d6a0" />
+    <text x="25" y="145" class="text-success">Mac (NFD): 길이 22 &gt; 18 (충족)</text>
+    <text x="25" y="165" class="text-success">▶ 정상 자식으로 인식되어 표시 복구!</text>
+  </g>
+
+  <!-- Column 3: Architecture & Gateway -->
+  <g transform="translate(650, 105)">
+    <rect width="270" height="420" class="card" />
+    <text x="20" y="32" class="text-title">3. 게이트웨이 파이프라인</text>
+    <text x="20" y="54" class="text-body">비침습적 프록시 아키텍처</text>
+
+    <rect x="15" y="75" width="240" height="70" rx="6" fill="#1b1d28" stroke="#3d405b" />
+    <text x="25" y="98" class="text-title" font-size="13">macOS Finder</text>
+    <text x="25" y="118" class="text-code">HTTPS 5006 접속 유지</text>
+    <text x="25" y="134" class="text-body">접속 URL / 계정 변경 없음</text>
+
+    <path d="M 135 150 L 135 168" class="arrow" />
+
+    <rect x="15" y="172" width="240" height="70" rx="6" fill="#1b1d28" stroke="#3d405b" />
+    <text x="25" y="194" class="text-title" font-size="13">DSM 역방향 프록시</text>
+    <text x="25" y="214" class="text-code">HTTPS 5006 (기존 인증서)</text>
+    <text x="25" y="230" class="text-body">루프백 127.0.0.1:18080 전달</text>
+
+    <path d="M 135 246 L 135 264" class="arrow-accent" />
+
+    <rect x="15" y="268" width="240" height="85" rx="6" fill="#162938" stroke="#38b000" />
+    <text x="25" y="290" class="text-title" font-size="13">보정 게이트웨이 (Docker)</text>
+    <text x="25" y="308" class="text-code">PROPFIND 207 응답만 href NFD</text>
+    <text x="25" y="326" class="text-body">일반 파일 전송: 64KiB 스트리밍</text>
+    <text x="25" y="342" class="text-body">인증 헤더 및 LOCK 토큰 보존</text>
+
+    <path d="M 135 357 L 135 375" class="arrow" />
+
+    <rect x="15" y="378" width="240" height="42" rx="6" fill="#1b1d28" stroke="#3d405b" />
+    <text x="25" y="396" class="text-title" font-size="13">Synology WebDAV Server</text>
+    <text x="25" y="412" class="text-code">HTTP 5005 (내부 전용)</text>
+  </g>
+
+  <!-- Connective Arrows -->
+  <path d="M 300 200 L 335 200" class="arrow-danger" />
+  <path d="M 300 420 L 335 420" class="arrow-accent" />
+
+  <!-- Footer note -->
+  <g transform="translate(40, 545)">
+    <rect width="880" height="55" rx="6" fill="#161822" stroke="#2b2d42" />
+    <text x="20" y="24" class="text-body">• 원천 데이터(디스크 저장 폴더명/파일 내용)는 일절 변경하지 않으며, WebDAV PROPFIND 목록 응답 경로만 NFD로 정규화합니다.</text>
+    <text x="20" y="44" class="text-body">• 원인 분석은 Apple 오픈소스(webdavfs) 분석에 기반한 [추론]이며, 복구 결과는 실제 환경에서 검증된 [실측] 데이터입니다.</text>
+  </g>
+</svg>
